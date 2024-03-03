@@ -126,3 +126,19 @@ bash
 Copy code
 docker run --name phanes-api-container -p 4000:91 -d leev2/phanes-api:v1.0.1
 These steps will guide you through updating the FastAPI application container on your server with the changes made on your workstation, ensuring that your server is always running the latest version of your application.
+
+
+
+
+
+Stop the Container: First, you stop the Docker container running on your workstation. This ensures that the container's state is preserved, and any changes made within the container are saved.
+
+Tag the Container with a New Version: After stopping the container, you tag it with a new version identifier. This can be a version number or any other identifier that helps you keep track of different versions of your container image. For example, you might tag the container as v1.0.0 for the initial version.
+
+Push the Container to Docker Hub: Once you've tagged the container with the new version, you push the container image to Docker Hub. This makes the updated container image available for deployment on other systems, including your server.
+
+Push Code Changes to GitHub: After pushing the container image to Docker Hub, you push any code changes or updates to your GitHub repository. These code changes represent the changes you've made to your application or service.
+
+CI/CD Pipeline with GitHub Actions: You set up a CI/CD pipeline using GitHub Actions. This pipeline is triggered whenever changes are pushed to your GitHub repository. The pipeline includes steps to build the Docker image, run tests if necessary, and push the updated image to Docker Hub.
+
+Automated Deployment on Server: Once the updated Docker image is pushed to Docker Hub through the CI/CD pipeline, your server pulls the latest version of the Docker image from Docker Hub and deploys it. This ensures that your server always runs the latest version of your application or service.
