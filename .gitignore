@@ -3,3 +3,6 @@ app/temp_images/
 app/extracted_images/
 app\extracted_images
 app\temp_images
+app\temp_transcriptions
+app/temp_transcriptions
+

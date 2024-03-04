@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, Query
+from fastapi import APIRouter, File, UploadFile, Query, BackgroundTasks
 from starlette.responses import FileResponse
 from PIL import Image
 import os
@@ -12,10 +12,10 @@ TEMP_DIR = "temp_images"
 EXTRACTED_DIR = "extracted_images"
 
 quality_mapping = {
-    "high": 95,
-    "medium": 85,
-    "low": 75,
-    "very_low": 65,
+    "high": 80,
+    "medium": 75,
+    "low": 60,
+    "very low": 50,
 }
 
 SUPPORTED_IMAGE_FORMATS = ['jpg', 'jpeg', 'png']
@@ -54,14 +54,24 @@ def process_image_files(directory, quality_value, size_threshold):
             processed_files.append((processed_file_path, os.path.relpath(processed_file_path, directory)))
     return processed_files
 
+def cleanup_dirs(dirs: List[str]):
+    """Removes specified directories and their contents."""
+    for dir_path in dirs:
+        shutil.rmtree(dir_path, ignore_errors=True)
+
 @router.post("/bulk_image_compressor/")
 async def bulk_image_compressor(
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
-    quality: str = Query(default="high", enum=["high", "medium", "low", "very_low"]),
+    quality: str = Query(default="high", enum=["high", "medium", "low", "very low"]),
     size_threshold: int = Query(default=500, enum=[500, 750])):
     
     if not os.path.exists(TEMP_DIR):
         os.makedirs(TEMP_DIR)
+    if not os.path.exists(EXTRACTED_DIR):
+        os.makedirs(EXTRACTED_DIR)
+
+    cleanup_paths = []
 
     for file in files:
         file_path = os.path.join(TEMP_DIR, file.filename)
@@ -71,22 +81,21 @@ async def bulk_image_compressor(
         if file.filename.lower().endswith('.zip'):
             # Handle ZIP file upload
             original_zip_filename, _ = os.path.splitext(file.filename)
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                extraction_path = os.path.join(EXTRACTED_DIR, original_zip_filename)
-                os.makedirs(extraction_path, exist_ok=True)
-                zip_ref.extractall(extraction_path)
+            extraction_path = os.path.join(EXTRACTED_DIR, original_zip_filename)
+            os.makedirs(extraction_path, exist_ok=True)
+            cleanup_paths.append(extraction_path)
+            zip_ref = zipfile.ZipFile(file_path, 'r')
+            zip_ref.extractall(extraction_path)
+            zip_ref.close()
 
-                processed_files = process_image_files(extraction_path, quality, size_threshold)
+            processed_files = process_image_files(extraction_path, quality, size_threshold)
 
-                compressed_zip_filename = f"{original_zip_filename}_compressed_{quality}.zip"
-                compressed_zip_file_path = os.path.join(TEMP_DIR, compressed_zip_filename)
+            compressed_zip_filename = f"{original_zip_filename}_compressed_{quality}.zip"
+            compressed_zip_file_path = os.path.join(TEMP_DIR, compressed_zip_filename)
 
-                with zipfile.ZipFile(compressed_zip_file_path, 'w') as zipf:
-                    for file_path, arcname in processed_files:
-                        zipf.write(file_path, arcname)
-
-                # Cleanup the extraction folder after processing
-                shutil.rmtree(extraction_path, ignore_errors=True)
+            with zipfile.ZipFile(compressed_zip_file_path, 'w') as zipf:
+                for file_path, arcname in processed_files:
+                    zipf.write(file_path, arcname)
 
         else:
             # Handle single image file upload
@@ -97,5 +106,9 @@ async def bulk_image_compressor(
             with zipfile.ZipFile(compressed_zip_file_path, 'w') as zipf:
                 arcname = os.path.basename(optimized_file_path)
                 zipf.write(optimized_file_path, arcname)
+
+    # Schedule cleanup task to remove temporary directories after response is sent
+    cleanup_paths.append(TEMP_DIR)
+    background_tasks.add_task(cleanup_dirs, cleanup_paths)
 
     return FileResponse(path=compressed_zip_file_path, media_type='application/zip', filename=compressed_zip_filename)
