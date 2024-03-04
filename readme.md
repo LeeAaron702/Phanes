@@ -7,6 +7,11 @@ docker run --name phanes-api -p 4000:91 -v ${PWD}/app:/app leev2/phanes-api uvic
 
 docker push leev2/phanes-api
 
+
+
+
+docker volume create Phanes_volume  
+
 ```
 
 
@@ -142,3 +147,70 @@ Push Code Changes to GitHub: After pushing the container image to Docker Hub, yo
 CI/CD Pipeline with GitHub Actions: You set up a CI/CD pipeline using GitHub Actions. This pipeline is triggered whenever changes are pushed to your GitHub repository. The pipeline includes steps to build the Docker image, run tests if necessary, and push the updated image to Docker Hub.
 
 Automated Deployment on Server: Once the updated Docker image is pushed to Docker Hub through the CI/CD pipeline, your server pulls the latest version of the Docker image from Docker Hub and deploys it. This ensures that your server always runs the latest version of your application or service.
+
+
+
+
+----
+Continuous Integration and Deployment Workflow
+This document outlines the steps required to update the code on the server after making changes and pushing them from your workstation to GitHub and Docker Hub.
+
+Workstation Workflow
+Development: Write and test your code on your local workstation.
+
+Commit Changes: After completing your changes, commit them to the Git repository on your workstation.
+
+bash
+Copy code
+git add .
+git commit -m "Describe your changes here"
+git push origin main
+Build and Push Docker Image: Build the Docker image containing your application and push it to Docker Hub.
+
+bash
+Copy code
+docker build -t leev2/phanes-api .
+docker push leev2/phanes-api
+Server Workflow
+Pull Code Changes from GitHub: SSH into your server and navigate to the directory where your application is deployed.
+
+bash
+Copy code
+ssh username@your_server_ip
+cd /path/to/your/application
+Pull the latest changes from your GitHub repository.
+
+bash
+Copy code
+git pull origin main
+Pull Docker Image: Pull the latest Docker image from Docker Hub.
+
+bash
+Copy code
+docker pull leev2/phanes-api
+Stop and Remove Existing Container: If the container is currently running, stop and remove it.
+
+bash
+Copy code
+docker stop phanes-api
+docker rm phanes-api
+Run New Container: Start a new container using the updated Docker image, ensuring that it mounts the volume linking to your cloned GitHub repository.
+
+bash
+Copy code
+docker run --name phanes-api -p 4000:91 -v Phanes_volume:/app leev2/phanes-api uvicorn main:app --host 0.0.0.0 --port 91 --reload
+Replace Phanes_volume with the name of your Docker volume.
+
+
+
+
+
+
+
+
+
+
+
+-----
+
+I gotta make sure the volume is built, then actually build the docker image then run it

@@ -5,6 +5,7 @@ from pytube import YouTube
 from faster_whisper import WhisperModel
 import os
 import shutil
+import zipfile
 
 router = APIRouter()
 
@@ -45,11 +46,15 @@ async def transcribe_media(background_tasks: BackgroundTasks, youtube_url: str =
     with open(transcript_file_path, "w") as text_file:
         text_file.write(transcription)
 
-    # Instead of scheduling a cleanup here, return the response and suggest scheduling cleanup elsewhere or manually
-    # background_tasks.add_task(cleanup_files, TEMP_DIR)
+    # Create a zip file containing the audio and transcription files
+    zip_filename = f"{os.path.splitext(video_filename)[0]}_transcription.zip"
+    zip_file_path = os.path.join(TEMP_DIR, zip_filename)
+    with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+        zipf.write(audio_path, os.path.basename(audio_path))
+        zipf.write(transcript_file_path, os.path.basename(transcript_file_path))
 
-    # Return the transcription file using FileResponse directly without scheduling cleanup in background_tasks
-    return FileResponse(path=transcript_file_path, media_type='txt', filename=transcript_filename)
+    # Return the zip file using FileResponse
+    return FileResponse(path=zip_file_path, media_type='application/zip', filename=zip_filename)
 
 # Keep the cleanup function for manual or scheduled invocation
 def cleanup_files(temp_dir: str):
