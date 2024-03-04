@@ -1,1 +1,5 @@
 __pycache__/
+app/temp_images/
+app/extracted_images/
+app\extracted_images
+app\temp_images
